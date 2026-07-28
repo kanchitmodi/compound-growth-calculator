@@ -1,0 +1,688 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compound Growth &amp; DCA Calculator</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --gridline:       #e1e0d9;
+    --baseline:       #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+    --series-1:       #2a78d6; /* contributions */
+    --series-2:       #eb6834; /* growth */
+    --good:           #006300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --gridline:       #2c2c2a;
+      --baseline:       #383835;
+      --border:         rgba(255,255,255,0.10);
+      --series-1:       #3987e5;
+      --series-2:       #d95926;
+      --good:           #0ca30c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --gridline:       #2c2c2a;
+    --baseline:       #383835;
+    --border:         rgba(255,255,255,0.10);
+    --series-1:       #3987e5;
+    --series-2:       #d95926;
+    --good:           #0ca30c;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--page);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  body { padding: 24px 16px 64px; }
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0; }
+
+  .theme-toggle {
+    border: 1px solid var(--border);
+    background: var(--surface-1);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .theme-toggle:hover { color: var(--text-primary); }
+
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+  }
+  .field label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .field label .val { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .field input[type="range"] {
+    width: 100%;
+    accent-color: var(--series-1);
+  }
+  .field select, .field input[type="number"] {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--page);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+  }
+  .field .num-row { display:flex; gap:8px; align-items:center; margin-top: 4px; }
+  .field .num-row input[type="number"] { flex: 1; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 16px;
+  }
+  .stat .label { font-size: 13px; color: var(--text-secondary); margin-bottom: 6px; }
+  .stat .value { font-size: 28px; font-weight: 600; line-height: 1.1; }
+  .stat.hero .value { font-size: 34px; }
+  .stat .sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  .chart-head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;}
+  .chart-title { font-size: 15px; font-weight: 600; }
+  .legend { display:flex; gap: 16px; font-size: 13px; color: var(--text-secondary); }
+  .legend .item { display:flex; align-items:center; gap: 6px; }
+  .legend .swatch { width: 10px; height: 10px; border-radius: 2px; display:inline-block; }
+  .legend .swatch.s1 { background: var(--series-1); }
+  .legend .swatch.s2 { background: var(--series-2); }
+
+  .table-toggle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  .table-toggle:hover { color: var(--text-primary); }
+
+  svg { display:block; width: 100%; height: auto; overflow: visible; }
+  .gridline { stroke: var(--gridline); stroke-width: 1; }
+  .baseline { stroke: var(--baseline); stroke-width: 1; }
+  .axis-label { fill: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .area-1 { fill: var(--series-1); opacity: 0.12; }
+  .area-2 { fill: var(--series-2); opacity: 0.12; }
+  .line-1 { fill: none; stroke: var(--series-1); stroke-width: 2; }
+  .line-2 { fill: none; stroke: var(--series-2); stroke-width: 2; }
+  .crosshair { stroke: var(--text-muted); stroke-width: 1; opacity: 0; pointer-events:none; }
+  .hover-dot { pointer-events:none; }
+
+  .tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    opacity: 0;
+    transition: opacity 0.08s;
+    min-width: 150px;
+    z-index: 5;
+  }
+  .tooltip .t-year { color: var(--text-secondary); margin-bottom: 6px; font-weight: 600; }
+  .tooltip .t-row { display:flex; justify-content: space-between; gap: 14px; align-items:center; }
+  .tooltip .t-row + .t-row { margin-top: 4px; }
+  .tooltip .t-key { display:flex; align-items:center; gap: 6px; color: var(--text-secondary); }
+  .tooltip .t-key .line { width: 10px; height: 2px; display:inline-block; }
+  .tooltip .t-val { color: var(--text-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tooltip .t-total { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 6px; }
+
+  .chart-wrap { position: relative; }
+
+  table.breakdown {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.breakdown th, table.breakdown td {
+    text-align: right;
+    padding: 8px 10px;
+    font-variant-numeric: tabular-nums;
+    border-bottom: 1px solid var(--gridline);
+  }
+  table.breakdown th:first-child, table.breakdown td:first-child { text-align: left; }
+  table.breakdown th { color: var(--text-secondary); font-weight: 600; font-size: 12px; }
+  table.breakdown tbody tr:hover { background: var(--page); }
+  .table-scroll { max-height: 320px; overflow-y: auto; overflow-x: auto; }
+
+  footer { text-align:center; color: var(--text-muted); font-size: 12px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Compound Growth &amp; DCA Calculator</h1>
+      <p class="subtitle">See how a starting balance plus regular contributions compounds over time.</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Dark mode</button>
+  </header>
+
+  <div class="card">
+    <div class="controls">
+      <div class="field">
+        <label for="initial">Initial investment <span class="val" id="initialVal">$10,000</span></label>
+        <input type="range" id="initial" min="0" max="200000" step="500" value="10000">
+        <div class="num-row">
+          <span style="color:var(--text-muted);font-size:13px;">$</span>
+          <input type="number" id="initialNum" min="0" step="100" value="10000">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="monthly">Monthly contribution <span class="val" id="monthlyVal">$500</span></label>
+        <input type="range" id="monthly" min="0" max="5000" step="25" value="500">
+        <div class="num-row">
+          <span style="color:var(--text-muted);font-size:13px;">$</span>
+          <input type="number" id="monthlyNum" min="0" step="25" value="500">
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="rate">Expected annual return <span class="val" id="rateVal">7.0%</span></label>
+        <input type="range" id="rate" min="0" max="15" step="0.1" value="7">
+      </div>
+
+      <div class="field">
+        <label for="years">Time horizon <span class="val" id="yearsVal">25 yrs</span></label>
+        <input type="range" id="years" min="1" max="50" step="1" value="25">
+      </div>
+
+      <div class="field">
+        <label for="compounding">Compounding</label>
+        <select id="compounding">
+          <option value="monthly" selected>Monthly</option>
+          <option value="annually">Annually</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat hero">
+        <div class="label">Final balance</div>
+        <div class="value" id="statFinal">$0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Total contributed</div>
+        <div class="value" id="statContrib">$0</div>
+      </div>
+      <div class="stat">
+        <div class="label">Investment growth</div>
+        <div class="value" id="statGrowth">$0</div>
+        <div class="sub" id="statGrowthPct">0% of final balance</div>
+      </div>
+      <div class="stat">
+        <div class="label">Growth multiple</div>
+        <div class="value" id="statMultiple">0.0&times;</div>
+        <div class="sub">final balance &divide; contributed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="chart-head">
+      <div class="chart-title">Balance over time</div>
+      <div class="legend">
+        <span class="item"><span class="swatch s1"></span>Contributions</span>
+        <span class="item"><span class="swatch s2"></span>Investment growth</span>
+      </div>
+      <button class="table-toggle" id="tableToggle" type="button">View as table</button>
+    </div>
+    <div class="chart-wrap" id="chartWrap">
+      <svg id="chart" viewBox="0 0 860 380" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+    <div class="table-scroll" id="tableView" style="display:none; margin-top:12px;">
+      <table class="breakdown">
+        <thead>
+          <tr>
+            <th>Year</th>
+            <th>Contributed this year</th>
+            <th>Cumulative contributed</th>
+            <th>Growth earned</th>
+            <th>Ending balance</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>All figures are illustrative estimates based on a constant annual return &mdash; not investment advice.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- Theme toggle ----------
+  var root = document.documentElement;
+  var themeToggle = document.getElementById('themeToggle');
+  function applyThemeLabel() {
+    var current = root.getAttribute('data-theme');
+    var isDark = current === 'dark' || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    themeToggle.textContent = isDark ? 'Light mode' : 'Dark mode';
+  }
+  themeToggle.addEventListener('click', function () {
+    var current = root.getAttribute('data-theme');
+    var isDark = current === 'dark' || (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    root.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    applyThemeLabel();
+  });
+  applyThemeLabel();
+
+  // ---------- Elements ----------
+  var initialSlider = document.getElementById('initial');
+  var initialNum = document.getElementById('initialNum');
+  var monthlySlider = document.getElementById('monthly');
+  var monthlyNum = document.getElementById('monthlyNum');
+  var rateSlider = document.getElementById('rate');
+  var yearsSlider = document.getElementById('years');
+  var compoundingSelect = document.getElementById('compounding');
+
+  var initialVal = document.getElementById('initialVal');
+  var monthlyVal = document.getElementById('monthlyVal');
+  var rateVal = document.getElementById('rateVal');
+  var yearsVal = document.getElementById('yearsVal');
+
+  var statFinal = document.getElementById('statFinal');
+  var statContrib = document.getElementById('statContrib');
+  var statGrowth = document.getElementById('statGrowth');
+  var statGrowthPct = document.getElementById('statGrowthPct');
+  var statMultiple = document.getElementById('statMultiple');
+
+  var svg = document.getElementById('chart');
+  var tooltip = document.getElementById('tooltip');
+  var chartWrap = document.getElementById('chartWrap');
+  var tableToggle = document.getElementById('tableToggle');
+  var tableView = document.getElementById('tableView');
+  var tableBody = document.getElementById('tableBody');
+
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  // ---------- Formatting ----------
+  function formatCurrency(n) {
+    return '$' + Math.round(n).toLocaleString('en-US');
+  }
+  function formatCompact(n) {
+    var abs = Math.abs(n);
+    if (abs >= 1e6) return '$' + (n / 1e6).toFixed(abs >= 1e7 ? 1 : 2) + 'M';
+    if (abs >= 1e3) return '$' + (n / 1e3).toFixed(abs >= 1e4 ? 0 : 1) + 'K';
+    return '$' + Math.round(n).toLocaleString('en-US');
+  }
+  function niceNumber(n) {
+    if (n <= 0) return 1;
+    var exp = Math.floor(Math.log10(n));
+    var base = n / Math.pow(10, exp);
+    var niceBase;
+    if (base <= 1) niceBase = 1;
+    else if (base <= 2) niceBase = 2;
+    else if (base <= 5) niceBase = 5;
+    else niceBase = 10;
+    return niceBase * Math.pow(10, exp);
+  }
+
+  // ---------- Math ----------
+  function computeSchedule(initial, monthly, ratePct, years, compounding) {
+    var r = ratePct / 100;
+    var periodsPerYear = compounding === 'monthly' ? 12 : 1;
+    var contribPerPeriod = compounding === 'monthly' ? monthly : monthly * 12;
+    var ratePerPeriod = r / periodsPerYear;
+
+    var balance = initial;
+    var cumulative = initial;
+    var schedule = [{ year: 0, contributedThisYear: 0, cumulative: cumulative, balance: balance, growth: 0 }];
+
+    for (var y = 1; y <= years; y++) {
+      var contributedThisYear = 0;
+      for (var p = 0; p < periodsPerYear; p++) {
+        balance = balance * (1 + ratePerPeriod) + contribPerPeriod;
+        cumulative += contribPerPeriod;
+        contributedThisYear += contribPerPeriod;
+      }
+      schedule.push({
+        year: y,
+        contributedThisYear: contributedThisYear,
+        cumulative: cumulative,
+        balance: balance,
+        growth: balance - cumulative
+      });
+    }
+    return schedule;
+  }
+
+  // ---------- Chart rendering ----------
+  var PAD = { left: 64, right: 20, top: 20, bottom: 32 };
+  var W = 860, H = 380;
+  var plotW = W - PAD.left - PAD.right;
+  var plotH = H - PAD.top - PAD.bottom;
+
+  var lastSchedule = null;
+
+  function render() {
+    var initial = Number(initialSlider.value);
+    var monthly = Number(monthlySlider.value);
+    var rate = Number(rateSlider.value);
+    var years = Number(yearsSlider.value);
+    var compounding = compoundingSelect.value;
+
+    initialVal.textContent = formatCurrency(initial);
+    monthlyVal.textContent = formatCurrency(monthly);
+    rateVal.textContent = rate.toFixed(1) + '%';
+    yearsVal.textContent = years + ' yrs';
+    if (document.activeElement !== initialNum) initialNum.value = initial;
+    if (document.activeElement !== monthlyNum) monthlyNum.value = monthly;
+
+    var schedule = computeSchedule(initial, monthly, rate, years, compounding);
+    lastSchedule = schedule;
+    var last = schedule[schedule.length - 1];
+
+    statFinal.textContent = formatCurrency(last.balance);
+    statContrib.textContent = formatCurrency(last.cumulative);
+    statGrowth.textContent = formatCurrency(last.growth);
+    var growthPct = last.balance > 0 ? (last.growth / last.balance) * 100 : 0;
+    statGrowthPct.textContent = growthPct.toFixed(0) + '% of final balance';
+    var multiple = last.cumulative > 0 ? last.balance / last.cumulative : 0;
+    statMultiple.textContent = multiple.toFixed(1) + '×';
+
+    drawChart(schedule);
+    renderTable(schedule);
+  }
+
+  function drawChart(schedule) {
+    var n = schedule.length - 1;
+    var yMaxRaw = schedule[schedule.length - 1].balance;
+    var yMax = niceNumber(yMaxRaw * 1.1);
+
+    function xAt(i) { return PAD.left + (i / n) * plotW; }
+    function yAt(v) { return PAD.top + plotH - (v / yMax) * plotH; }
+
+    // Build path strings
+    var contribLinePts = schedule.map(function (d, i) { return xAt(i) + ',' + yAt(d.cumulative); });
+    var balanceLinePts = schedule.map(function (d, i) { return xAt(i) + ',' + yAt(d.balance); });
+
+    var area1Path = 'M ' + xAt(0) + ',' + yAt(0) + ' L ' + contribLinePts.join(' L ') +
+      ' L ' + xAt(n) + ',' + yAt(0) + ' Z';
+
+    var area2Path = 'M ' + contribLinePts[0] + ' L ' + contribLinePts.slice(1).join(' L ') +
+      ' L ' + balanceLinePts.slice().reverse().join(' L ') + ' Z';
+
+    var line1Path = 'M ' + contribLinePts.join(' L ');
+    var line2Path = 'M ' + balanceLinePts.join(' L ');
+
+    // ---------- Build SVG ----------
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+
+    var gGrid = document.createElementNS(SVGNS, 'g');
+    var ticks = 5;
+    for (var t = 0; t <= ticks; t++) {
+      var v = (yMax / ticks) * t;
+      var y = yAt(v);
+      var gl = document.createElementNS(SVGNS, 'line');
+      gl.setAttribute('x1', PAD.left); gl.setAttribute('x2', W - PAD.right);
+      gl.setAttribute('y1', y); gl.setAttribute('y2', y);
+      gl.setAttribute('class', 'gridline');
+      gGrid.appendChild(gl);
+
+      var label = document.createElementNS(SVGNS, 'text');
+      label.setAttribute('x', PAD.left - 10);
+      label.setAttribute('y', y + 4);
+      label.setAttribute('text-anchor', 'end');
+      label.setAttribute('class', 'axis-label');
+      label.textContent = formatCompact(v);
+      gGrid.appendChild(label);
+    }
+    svg.appendChild(gGrid);
+
+    // baseline
+    var baseline = document.createElementNS(SVGNS, 'line');
+    baseline.setAttribute('x1', PAD.left); baseline.setAttribute('x2', W - PAD.right);
+    baseline.setAttribute('y1', yAt(0)); baseline.setAttribute('y2', yAt(0));
+    baseline.setAttribute('class', 'baseline');
+    svg.appendChild(baseline);
+
+    // x-axis labels (avoid crowding)
+    var xLabelStep = Math.max(1, Math.ceil(n / 8));
+    for (var i = 0; i <= n; i += xLabelStep) {
+      var xl = document.createElementNS(SVGNS, 'text');
+      xl.setAttribute('x', xAt(i));
+      xl.setAttribute('y', H - PAD.bottom + 20);
+      xl.setAttribute('text-anchor', 'middle');
+      xl.setAttribute('class', 'axis-label');
+      xl.textContent = 'Yr ' + i;
+      svg.appendChild(xl);
+    }
+
+    // areas
+    var a1 = document.createElementNS(SVGNS, 'path');
+    a1.setAttribute('d', area1Path); a1.setAttribute('class', 'area-1');
+    svg.appendChild(a1);
+
+    var a2 = document.createElementNS(SVGNS, 'path');
+    a2.setAttribute('d', area2Path); a2.setAttribute('class', 'area-2');
+    svg.appendChild(a2);
+
+    // lines
+    var l1 = document.createElementNS(SVGNS, 'path');
+    l1.setAttribute('d', line1Path); l1.setAttribute('class', 'line-1');
+    svg.appendChild(l1);
+
+    var l2 = document.createElementNS(SVGNS, 'path');
+    l2.setAttribute('d', line2Path); l2.setAttribute('class', 'line-2');
+    svg.appendChild(l2);
+
+    // crosshair + hover dots
+    var crosshair = document.createElementNS(SVGNS, 'line');
+    crosshair.setAttribute('y1', PAD.top); crosshair.setAttribute('y2', H - PAD.bottom);
+    crosshair.setAttribute('class', 'crosshair');
+    crosshair.setAttribute('id', 'crosshair');
+    svg.appendChild(crosshair);
+
+    var dot1 = document.createElementNS(SVGNS, 'circle');
+    dot1.setAttribute('r', 4); dot1.setAttribute('fill', 'var(--series-1)');
+    dot1.setAttribute('stroke', 'var(--surface-1)'); dot1.setAttribute('stroke-width', 2);
+    dot1.setAttribute('class', 'hover-dot'); dot1.setAttribute('id', 'dot1');
+    dot1.style.opacity = 0;
+    svg.appendChild(dot1);
+
+    var dot2 = document.createElementNS(SVGNS, 'circle');
+    dot2.setAttribute('r', 4); dot2.setAttribute('fill', 'var(--series-2)');
+    dot2.setAttribute('stroke', 'var(--surface-1)'); dot2.setAttribute('stroke-width', 2);
+    dot2.setAttribute('class', 'hover-dot'); dot2.setAttribute('id', 'dot2');
+    dot2.style.opacity = 0;
+    svg.appendChild(dot2);
+
+    // hit rect for mouse tracking
+    var hitRect = document.createElementNS(SVGNS, 'rect');
+    hitRect.setAttribute('x', PAD.left); hitRect.setAttribute('y', PAD.top);
+    hitRect.setAttribute('width', plotW); hitRect.setAttribute('height', plotH);
+    hitRect.setAttribute('fill', 'transparent');
+    hitRect.style.cursor = 'crosshair';
+    svg.appendChild(hitRect);
+
+    function handleMove(clientX, clientY) {
+      var rect = svg.getBoundingClientRect();
+      var scaleX = W / rect.width;
+      var px = (clientX - rect.left) * scaleX;
+      var i = Math.round(((px - PAD.left) / plotW) * n);
+      i = Math.max(0, Math.min(n, i));
+      var d = schedule[i];
+
+      crosshair.setAttribute('x1', xAt(i));
+      crosshair.setAttribute('x2', xAt(i));
+      crosshair.style.opacity = 1;
+
+      dot1.setAttribute('cx', xAt(i)); dot1.setAttribute('cy', yAt(d.cumulative)); dot1.style.opacity = 1;
+      dot2.setAttribute('cx', xAt(i)); dot2.setAttribute('cy', yAt(d.balance)); dot2.style.opacity = 1;
+
+      var scaleRect = rect.width / W;
+      var tx = xAt(i) * scaleRect;
+      var ty = yAt(d.balance) * scaleRect;
+
+      tooltip.innerHTML = '';
+      var yearRow = document.createElement('div');
+      yearRow.className = 't-year';
+      yearRow.textContent = 'Year ' + d.year;
+      tooltip.appendChild(yearRow);
+
+      function addRow(colorVar, label, value, emphasize) {
+        var row = document.createElement('div');
+        row.className = 't-row' + (emphasize ? ' t-total' : '');
+        var key = document.createElement('div');
+        key.className = 't-key';
+        if (colorVar) {
+          var line = document.createElement('span');
+          line.className = 'line';
+          line.style.background = colorVar;
+          key.appendChild(line);
+        }
+        var keyText = document.createElement('span');
+        keyText.textContent = label;
+        key.appendChild(keyText);
+        row.appendChild(key);
+        var val = document.createElement('div');
+        val.className = 't-val';
+        val.textContent = value;
+        row.appendChild(val);
+        tooltip.appendChild(row);
+      }
+      addRow('var(--series-1)', 'Contributed', formatCurrency(d.cumulative), false);
+      addRow('var(--series-2)', 'Growth', formatCurrency(d.growth), false);
+      addRow(null, 'Balance', formatCurrency(d.balance), true);
+
+      var wrapRect = chartWrap.getBoundingClientRect();
+      var left = tx + 16;
+      var top = ty - 10;
+      if (left + 180 > wrapRect.width) left = tx - 180 - 16;
+      if (top + 120 > wrapRect.height) top = wrapRect.height - 120;
+      if (top < 0) top = 0;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+      tooltip.style.opacity = 1;
+    }
+
+    hitRect.addEventListener('mousemove', function (e) { handleMove(e.clientX, e.clientY); });
+    hitRect.addEventListener('mouseleave', function () {
+      crosshair.style.opacity = 0;
+      dot1.style.opacity = 0;
+      dot2.style.opacity = 0;
+      tooltip.style.opacity = 0;
+    });
+    hitRect.addEventListener('touchmove', function (e) {
+      if (e.touches && e.touches[0]) {
+        handleMove(e.touches[0].clientX, e.touches[0].clientY);
+        e.preventDefault();
+      }
+    }, { passive: false });
+  }
+
+  function renderTable(schedule) {
+    tableBody.innerHTML = '';
+    for (var i = 0; i < schedule.length; i++) {
+      var d = schedule[i];
+      var tr = document.createElement('tr');
+      var cells = [
+        'Year ' + d.year,
+        d.year === 0 ? '—' : formatCurrency(d.contributedThisYear),
+        formatCurrency(d.cumulative),
+        formatCurrency(d.growth),
+        formatCurrency(d.balance)
+      ];
+      cells.forEach(function (text) {
+        var td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      });
+      tableBody.appendChild(tr);
+    }
+  }
+
+  // ---------- Wiring ----------
+  function syncNumFromSlider(slider, num) {
+    slider.addEventListener('input', function () { num.value = slider.value; render(); });
+  }
+  function syncSliderFromNum(slider, num) {
+    num.addEventListener('input', function () {
+      var v = Number(num.value);
+      if (isNaN(v)) return;
+      v = Math.max(Number(slider.min), v);
+      if (v > Number(slider.max)) slider.max = v;
+      slider.value = v;
+      render();
+    });
+  }
+  syncNumFromSlider(initialSlider, initialNum);
+  syncNumFromSlider(monthlySlider, monthlyNum);
+  syncSliderFromNum(initialSlider, initialNum);
+  syncSliderFromNum(monthlySlider, monthlyNum);
+  rateSlider.addEventListener('input', render);
+  yearsSlider.addEventListener('input', render);
+  compoundingSelect.addEventListener('change', render);
+
+  tableToggle.addEventListener('click', function () {
+    var showing = tableView.style.display !== 'none';
+    tableView.style.display = showing ? 'none' : 'block';
+    tableToggle.textContent = showing ? 'View as table' : 'Hide table';
+  });
+
+  window.addEventListener('resize', function () {
+    if (lastSchedule) drawChart(lastSchedule);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
